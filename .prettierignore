@@ -1,0 +1,13 @@
+node_modules
+dist
+build
+temp
+coverage
+client/dist
+.git
+.gitignore
+.prettierrc
+.prettierignore
+*.lock
+package-lock.json
+yarn.lock
