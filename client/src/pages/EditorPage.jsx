@@ -9,6 +9,15 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
+import {
+  getSnapshots,
+  getWorkspace,
+  removeSnapshot,
+  saveRoom,
+  saveSnapshot,
+  saveWorkspace,
+  shouldRestoreLocalWorkspace,
+} from '../roomStorage';
 
 const languageFromName = (name) => {
   const extension = name.split('.').pop()?.toLowerCase();
@@ -46,21 +55,25 @@ const nameForLanguage = (name, language, otherFiles) => {
 };
 
 const EditorPage = () => {
+  const location = useLocation();
+  const { roomId } = useParams();
+  const reactNavigator = useNavigate();
   const [socket, setSocket] = useState(null);
   const [isConnected, setIsConnected] = useState(false);
   const [hasJoinedRoom, setHasJoinedRoom] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+  const [snapshotState, setSnapshotState] = useState(() => ({ roomId, snapshots: getSnapshots(roomId) }));
+  const [snapshotPanelOpen, setSnapshotPanelOpen] = useState(false);
   const socketRef = useRef(null);
+  const hasConnectedRef = useRef(false);
   const [clients, setClients] = useState([]);
   const [files, setFiles] = useState([]);
   const filesRef = useRef([]);
   const [activeFileId, setActiveFileId] = useState('');
   const [ownerSocketId, setOwnerSocketId] = useState(null);
   const [permissions, setPermissions] = useState({});
-  const location = useLocation();
   const [username, setUsername] = useState(() => location.state?.username?.trim() || '');
   const [inviteUsername, setInviteUsername] = useState('');
-  const { roomId } = useParams();
-  const reactNavigator = useNavigate();
   const terminalRef = useRef(null);
   const xtermRef = useRef(null);
   const terminalInputActiveRef = useRef(false);
@@ -69,6 +82,7 @@ const EditorPage = () => {
     () => files.find((file) => file.id === activeFileId) || files[0] || null,
     [files, activeFileId],
   );
+  const snapshots = snapshotState.roomId === roomId ? snapshotState.snapshots : getSnapshots(roomId);
   const isOwner = Boolean(socket?.id && socket.id === ownerSocketId);
   const canEdit = Boolean(
     hasJoinedRoom && socket?.id && (isOwner || permissions[socket.id] === 'editor'),
@@ -148,9 +162,24 @@ const EditorPage = () => {
     };
 
     const handleJoined = ({ clients: nextClients, username: joinedUsername, socketId, room }) => {
-      applyRoom(room, nextClients);
-      if (socketId === currentSocket.id) setHasJoinedRoom(true);
-      if (socketId !== currentSocket.id) {
+      const joinedByThisSocket = socketId === currentSocket.id;
+      if (joinedByThisSocket) {
+        saveRoom(roomId, joiningUsername);
+        setIsReconnecting(false);
+        const cachedFiles = getWorkspace(roomId);
+        if (shouldRestoreLocalWorkspace(room?.files, cachedFiles)) {
+          const recoveredRoom = { ...room, files: cachedFiles };
+          applyRoom(recoveredRoom, nextClients);
+          currentSocket.emit(ACTIONS.FILES_UPDATE, { roomId, files: cachedFiles });
+          toast.success('Your saved room draft was restored.');
+        } else {
+          applyRoom(room, nextClients);
+        }
+        setHasJoinedRoom(true);
+      } else {
+        applyRoom(room, nextClients);
+      }
+      if (!joinedByThisSocket) {
         toast.success(`${joinedUsername} joined the room.`);
       }
     };
@@ -194,11 +223,14 @@ const EditorPage = () => {
     const handleConnect = () => {
       setIsConnected(true);
       setHasJoinedRoom(false);
+      setIsReconnecting(hasConnectedRef.current);
+      hasConnectedRef.current = true;
       currentSocket.emit(ACTIONS.JOIN, { roomId, username: joiningUsername });
     };
     const handleDisconnect = () => {
       setIsConnected(false);
       setHasJoinedRoom(false);
+      setIsReconnecting(hasConnectedRef.current);
       terminalInputActiveRef.current = false;
       terminalInputBufferRef.current = '';
     };
@@ -221,10 +253,45 @@ const EditorPage = () => {
     };
   }, [roomId, username]);
 
+  useEffect(() => {
+    if (hasJoinedRoom && files.length) saveWorkspace(roomId, files);
+  }, [files, hasJoinedRoom, roomId]);
+
   const publishFiles = (nextFiles) => {
     filesRef.current = nextFiles;
     setFiles(nextFiles);
     socketRef.current?.emit(ACTIONS.FILES_UPDATE, { roomId, files: nextFiles });
+  };
+
+  const createCodeSnapshot = () => {
+    if (!files.length) return;
+    const label = window.prompt('Name this snapshot', `Snapshot ${snapshots.length + 1}`);
+    if (label === null) return;
+    if (!saveSnapshot(roomId, files, label)) {
+      toast.error('Could not save snapshot. Browser storage may be full.');
+      return;
+    }
+    setSnapshotState({ roomId, snapshots: getSnapshots(roomId) });
+    toast.success('Snapshot saved in this browser.');
+  };
+
+  const restoreCodeSnapshot = (snapshot) => {
+    if (!canEdit) {
+      toast.error('Ask the room owner for edit access to restore a snapshot.');
+      return;
+    }
+    if (!window.confirm(`Restore "${snapshot.label}"? This replaces the current room files for everyone.`)) return;
+    publishFiles(snapshot.files);
+    setSnapshotPanelOpen(false);
+    toast.success('Snapshot restored for everyone in the room.');
+  };
+
+  const forgetCodeSnapshot = (snapshotId) => {
+    if (!removeSnapshot(roomId, snapshotId)) {
+      toast.error('Could not remove this snapshot.');
+      return;
+    }
+    setSnapshotState({ roomId, snapshots: getSnapshots(roomId) });
   };
 
   const addFile = () => {
@@ -343,7 +410,7 @@ const EditorPage = () => {
       <aside className="aside">
         <div className="asideInner">
           <div className="logo"><h2 style={{ color: '#4aee88' }}>CodeCollab</h2></div>
-          <h3>{hasJoinedRoom ? 'Connected' : isConnected ? 'Joining room…' : 'Connecting…'}</h3>
+          <h3>{hasJoinedRoom ? 'Connected' : isReconnecting ? 'Reconnecting…' : isConnected ? 'Joining room…' : 'Connecting…'}</h3>
           <div className="clientsList">
             {clients.map((client) => (
               <Client
@@ -394,6 +461,54 @@ const EditorPage = () => {
             {canEdit && activeFile && (
               <button className="btn renameFileBtn" onClick={() => renameFile(activeFile)}>Rename file</button>
             )}
+            <div className="snapshotTools">
+              <button
+                type="button"
+                className="btn snapshotsBtn"
+                aria-expanded={snapshotPanelOpen}
+                aria-controls="roomSnapshots"
+                onClick={() => setSnapshotPanelOpen((open) => !open)}
+              >
+                Snapshots ({snapshots.length})
+              </button>
+              {snapshotPanelOpen && (
+                <div className="snapshotPopover" id="roomSnapshots">
+                  <div className="snapshotPopoverHeader">
+                    <strong>Room snapshots</strong>
+                    <button type="button" className="snapshotSaveBtn" onClick={createCodeSnapshot}>Save current files</button>
+                  </div>
+                  {snapshots.length === 0 ? (
+                    <p className="snapshotEmpty">Snapshots are saved in this browser.</p>
+                  ) : snapshots.map((snapshot) => (
+                    <div className="snapshotItem" key={snapshot.id}>
+                      <div className="snapshotInfo">
+                        <strong title={snapshot.label}>{snapshot.label}</strong>
+                        <small>{new Date(snapshot.createdAt).toLocaleString()}</small>
+                        <small>{snapshot.files.length} file{snapshot.files.length === 1 ? '' : 's'}</small>
+                      </div>
+                      <button
+                        type="button"
+                        className="snapshotRestoreBtn"
+                        onClick={() => restoreCodeSnapshot(snapshot)}
+                        disabled={!canEdit}
+                        title={canEdit ? 'Replace shared room files with this snapshot' : 'Viewers cannot restore snapshots'}
+                      >
+                        Restore
+                      </button>
+                      <button
+                        type="button"
+                        className="snapshotDeleteBtn"
+                        onClick={() => forgetCodeSnapshot(snapshot.id)}
+                        aria-label={`Delete snapshot ${snapshot.label}`}
+                        title="Delete this local snapshot"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
             <button
               className="btn runBtn"
               onClick={runCode}
