@@ -39,6 +39,7 @@ const roomStates = new Map();
 function createRoomState() {
   return {
     ownerSocketId: null,
+    locked: false,
     files: [{ id: 'main', name: 'main.js', language: 'javascript', code: '' }],
     permissions: new Map(),
     cursors: new Map(),
@@ -51,6 +52,7 @@ function getRoomSnapshot(roomId) {
   return {
     files: room.files,
     ownerSocketId: room.ownerSocketId,
+    locked: room.locked,
     permissions: Object.fromEntries(room.permissions),
     cursors: Array.from(room.cursors, ([socketId, cursor]) => ({ socketId, ...cursor })),
   };
@@ -88,7 +90,16 @@ function normalizeFiles(files) {
   for (const file of files) {
     if (!file || typeof file.id !== 'string' || typeof file.name !== 'string' ||
         typeof file.language !== 'string' || typeof file.code !== 'string') return null;
-    const name = file.name.trim().slice(0, 80);
+    const name = file.name.trim().replace(/\\/g, '/');
+    const parts = name.split('/');
+    const invalidPart = (part) => part.length > 80 || /[<>:"|?*]/.test(part) ||
+      Array.from(part).some((character) => {
+        const code = character.charCodeAt(0);
+        return code <= 0x1f || code === 0x7f;
+      });
+    if (!name || name.length > 240 || name.startsWith('/') || /^[a-z]:/i.test(name) ||
+        parts.some((part) => !part || part === '.' || part === '..' || part.length > 80 ||
+          invalidPart(part))) return null;
     const key = name.toLowerCase();
     if (!name || names.has(key)) return null;
     names.add(key);
@@ -98,6 +109,12 @@ function normalizeFiles(files) {
       language: file.language.slice(0, 30),
       code: file.code,
     });
+  }
+  for (const name of names) {
+    const parts = name.split('/');
+    for (let index = 1; index < parts.length; index += 1) {
+      if (names.has(parts.slice(0, index).join('/'))) return null;
+    }
   }
   return normalized;
 }
@@ -114,6 +131,10 @@ io.on('connection', (socket) => {
     if (!room) {
       room = createRoomState();
       roomStates.set(trimmedRoomId, room);
+    }
+    if (room.locked && room.ownerSocketId !== socket.id) {
+      socket.emit(ACTIONS.ROOM_JOIN_REJECTED, 'This room is locked by its owner. Ask them to unlock it before joining.');
+      return;
     }
     if (!room.ownerSocketId) room.ownerSocketId = socket.id;
     room.permissions.set(socket.id, 'editor');
@@ -138,6 +159,7 @@ io.on('connection', (socket) => {
     const file = room.files.find((item) => item.id === fileId);
     if (!file) return;
     file.code = code;
+    socket.emit(ACTIONS.CODE_CHANGE_ACK, { fileId, code });
     socket.to(trimmedRoomId).emit(ACTIONS.CODE_CHANGE, {
       fileId,
       code,
@@ -212,6 +234,56 @@ io.on('connection', (socket) => {
     io.to(trimmedRoomId).emit(ACTIONS.PERMISSIONS_UPDATED, {
       clients: getAllConnectedClients(trimmedRoomId),
       permissions: Object.fromEntries(room.permissions),
+    });
+  });
+
+  socket.on(ACTIONS.ROOM_LOCK_CHANGE, (payload = {}) => {
+    const roomId = socket.data.roomId;
+    const room = roomId && roomStates.get(roomId);
+    if (!room || room.ownerSocketId !== socket.id || typeof payload.locked !== 'boolean') return;
+    room.locked = payload.locked;
+    io.to(roomId).emit(ACTIONS.ROOM_STATE, {
+      room: getRoomSnapshot(roomId),
+      clients: getAllConnectedClients(roomId),
+    });
+  });
+
+  socket.on(ACTIONS.ROOM_OWNER_TRANSFER, (payload = {}) => {
+    const roomId = socket.data.roomId;
+    const room = roomId && roomStates.get(roomId);
+    const targetSocketId = payload.targetSocketId;
+    const target = io.sockets.sockets.get(targetSocketId);
+    if (!room || room.ownerSocketId !== socket.id || !target || targetSocketId === socket.id ||
+        target.data.roomId !== roomId) return;
+    room.ownerSocketId = targetSocketId;
+    room.permissions.set(socket.id, 'editor');
+    room.permissions.set(targetSocketId, 'editor');
+    io.to(roomId).emit(ACTIONS.ROOM_STATE, {
+      room: getRoomSnapshot(roomId),
+      clients: getAllConnectedClients(roomId),
+    });
+  });
+
+  socket.on(ACTIONS.ROOM_REMOVE_CLIENT, (payload = {}) => {
+    const roomId = socket.data.roomId;
+    const room = roomId && roomStates.get(roomId);
+    const targetSocketId = payload.targetSocketId;
+    const target = io.sockets.sockets.get(targetSocketId);
+    if (!room || room.ownerSocketId !== socket.id || !target || targetSocketId === socket.id ||
+        target.data.roomId !== roomId) return;
+    const removedUsername = userSocketMap[targetSocketId] || 'A participant';
+    room.permissions.delete(targetSocketId);
+    room.cursors.delete(targetSocketId);
+    target.emit(ACTIONS.ROOM_REMOVED, 'The room owner removed you from this room.');
+    target.leave(roomId);
+    target.data.roomId = null;
+    delete userSocketMap[targetSocketId];
+    target.disconnect(true);
+    io.to(roomId).emit(ACTIONS.DISCONNECTED, {
+      socketId: targetSocketId,
+      username: removedUsername,
+      clients: getAllConnectedClients(roomId),
+      room: getRoomSnapshot(roomId),
     });
   });
 

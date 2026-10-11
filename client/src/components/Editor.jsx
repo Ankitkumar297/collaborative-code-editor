@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Codemirror from 'codemirror';
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/theme/dracula.css';
@@ -42,14 +42,20 @@ const getMode = (language) => {
   }
 };
 
-const Editor = ({ socket, roomId, activeFile, onCodeChange, canEdit }) => {
+const Editor = ({ socket, roomId, activeFile, onCodeChange, canEdit, searchRequest }) => {
   const editorRef = useRef(null);
   const textareaRef = useRef(null);
   const propsRef = useRef({});
+  const [historySize, setHistorySize] = useState({ undo: 0, redo: 0 });
   const remoteCursorsRef = useRef(new Map());
   const cursorMarksRef = useRef([]);
   const redrawRemoteCursorsRef = useRef(() => {});
-  propsRef.current = { socket, roomId, activeFile, onCodeChange, canEdit };
+  const historyFrameRef = useRef(0);
+  const searchMarksRef = useRef([]);
+
+  useEffect(() => {
+    propsRef.current = { socket, roomId, activeFile, onCodeChange, canEdit };
+  }, [socket, roomId, activeFile, onCodeChange, canEdit]);
 
   useEffect(() => {
     if (!textareaRef.current) return undefined;
@@ -152,12 +158,23 @@ const Editor = ({ socket, roomId, activeFile, onCodeChange, canEdit }) => {
       drawRemoteCursors();
     };
 
+    const updateHistorySize = () => {
+      window.cancelAnimationFrame(historyFrameRef.current);
+      historyFrameRef.current = window.requestAnimationFrame(() => {
+        setHistorySize(editor.historySize());
+      });
+    };
+
     const changeHandler = (instance, change) => {
-      if (change.origin === 'setValue') return;
+      if (change.origin === 'setValue') {
+        updateHistorySize();
+        return;
+      }
       const current = propsRef.current;
       const code = instance.getValue();
       current.onCodeChange?.(current.activeFile?.id, code);
-      if (current.canEdit && current.activeFile) {
+      updateHistorySize();
+      if (current.canEdit && current.activeFile && current.socket?.connected) {
         current.socket?.emit(ACTIONS.CODE_CHANGE, {
           roomId: current.roomId,
           fileId: current.activeFile.id,
@@ -181,6 +198,9 @@ const Editor = ({ socket, roomId, activeFile, onCodeChange, canEdit }) => {
       socket?.off(ACTIONS.JOINED, handleJoined);
       socket?.off(ACTIONS.DISCONNECTED, handleDisconnected);
       clearCursorMarks();
+      searchMarksRef.current.forEach((mark) => mark.clear());
+      searchMarksRef.current = [];
+      window.cancelAnimationFrame(historyFrameRef.current);
       remoteCursorsRef.current.clear();
       redrawRemoteCursorsRef.current = () => {};
       editor.toTextArea();
@@ -200,10 +220,54 @@ const Editor = ({ socket, roomId, activeFile, onCodeChange, canEdit }) => {
     if (!editor) return;
     const code = activeFile?.code || '';
     if (editor.getValue() !== code) editor.setValue(code);
+    setHistorySize(editor.historySize());
     redrawRemoteCursorsRef.current();
   }, [activeFile?.id, activeFile?.code]);
 
-  return <textarea id="realtimeEditor" ref={textareaRef} />;
+  useEffect(() => {
+    const editor = editorRef.current;
+    searchMarksRef.current.forEach((mark) => mark.clear());
+    searchMarksRef.current = [];
+    if (!editor || !searchRequest || searchRequest.fileId !== activeFile?.id || searchRequest.type !== 'code') return;
+
+    const cursor = editor.getSearchCursor(searchRequest.query, { line: 0, ch: 0 }, { caseFold: true });
+    let match = null;
+    for (let index = 0; index <= searchRequest.matchIndex; index += 1) {
+      if (!cursor.findNext()) return;
+      match = { from: cursor.from(), to: cursor.to() };
+    }
+    if (match) {
+      searchMarksRef.current.push(editor.markText(match.from, match.to, { className: 'fileSearchMatch' }));
+      editor.scrollIntoView({ from: match.from, to: match.to }, 100);
+      editor.setSelection(match.from, match.to);
+      editor.focus();
+    }
+  }, [searchRequest, activeFile?.id, activeFile?.code]);
+
+  return (
+    <div className="codeEditorSurface">
+      <div className="editorHistoryToolbar" aria-label="Editor history controls">
+        <button
+          type="button"
+          onClick={() => editorRef.current?.undo()}
+          disabled={!canEdit || historySize.undo === 0}
+          title="Undo (Ctrl+Z)"
+        >
+          ↶ Undo
+        </button>
+        <button
+          type="button"
+          onClick={() => editorRef.current?.redo()}
+          disabled={!canEdit || historySize.redo === 0}
+          title="Redo (Ctrl+Y)"
+        >
+          ↷ Redo
+        </button>
+        <span>Undo and redo apply to your edits in this file</span>
+      </div>
+      <textarea id="realtimeEditor" ref={textareaRef} />
+    </div>
+  );
 };
 
 export default Editor;

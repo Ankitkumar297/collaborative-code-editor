@@ -3,6 +3,7 @@ const ACTIONS = {
   JOINED: 'joined',
   DISCONNECTED: 'disconnected',
   CODE_CHANGE: 'code-change',
+  CODE_CHANGE_ACK: 'code-change-ack',
   SYNC_CODE: 'sync-code',
   LEAVE: 'leave',
   LANGUAGE_CHANGE: 'language-change',
@@ -17,6 +18,11 @@ const ACTIONS = {
   PERMISSION_CHANGE: 'permission-change',
   PERMISSIONS_UPDATED: 'permissions-updated',
   ROOM_STATE: 'room-state',
+  ROOM_LOCK_CHANGE: 'room-lock-change',
+  ROOM_OWNER_TRANSFER: 'room-owner-transfer',
+  ROOM_REMOVE_CLIENT: 'room-remove-client',
+  ROOM_JOIN_REJECTED: 'room-join-rejected',
+  ROOM_REMOVED: 'room-removed',
   PERMISSION_DENIED: 'permission-denied',
 };
 

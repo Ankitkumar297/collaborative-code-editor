@@ -226,8 +226,24 @@ body {
   background: #4aee88;
 }
 
+.roomLockBtn {
+  background: #f1fa8c;
+  color: #20222d;
+}
+
+.roomLockedBadge {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 5px 8px;
+  border: 1px solid #e6bd67;
+  border-radius: 5px;
+  color: #ffe19a;
+  font-size: 11px;
+}
+
 /* Editor Container */
 .editorContainer {
+  position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -265,19 +281,219 @@ body {
 .editorMain {
   flex: 1;
   display: grid;
-  grid-template-rows: 1fr 200px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr) 200px;
   overflow: hidden;
 }
 
+.fileExplorer {
+  position: absolute;
+  z-index: 30;
+  top: 48px;
+  bottom: 200px;
+  left: 0;
+  width: min(260px, 85vw);
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #424242;
+  border-radius: 0 0 8px 0;
+  background: #22242e;
+  box-shadow: 8px 12px 28px rgba(0, 0, 0, 0.4);
+}
+
+.explorerToggleBtn {
+  padding: 8px 11px;
+  background: #3e4153;
+  color: #fff;
+}
+
+.explorerToggleBtn.active {
+  color: #4aee88;
+  border-color: #4aee88;
+}
+
+.fileExplorerHeader,
+.fileExplorerActions {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 5px 9px;
+  border-bottom: 1px solid #383b49;
+  color: #aeb4c5;
+  font-size: 10px;
+}
+
+.fileExplorerHeader span {
+  color: #7f869a;
+}
+
+.fileExplorerActions {
+  justify-content: flex-start;
+  min-height: 36px;
+}
+
+.fileExplorerActions button {
+  border: 1px solid #45495a;
+  border-radius: 4px;
+  padding: 4px 7px;
+  background: #303341;
+  color: #d6d8e0;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.fileExplorerActions button:hover:not(:disabled) {
+  border-color: #4aee88;
+  color: #4aee88;
+}
+
+.fileExplorerActions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.fileTreeRoot,
+.fileTreeFolder,
+.fileTreeFile {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  min-height: 28px;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  padding-top: 4px;
+  padding-right: 8px;
+  padding-bottom: 4px;
+  background: transparent;
+  color: #c6cad5;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  font-size: 11px;
+}
+
+.fileTreeRoot {
+  padding-left: 9px;
+  font-weight: 700;
+}
+
+.fileTreeRoot.selected,
+.fileTreeFolder.selected {
+  color: #8be9fd;
+}
+
+.fileTreeFolderIcon {
+  color: #f1fa8c;
+}
+
+.fileTreeFileIcon {
+  min-width: 25px;
+  color: #8be9fd;
+  font-size: 8px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.fileTreeLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileTreeFolder:hover,
+.fileTreeFile:hover,
+.fileTreeRoot:hover {
+  background: #303341;
+}
+
+.fileTreeFile.selected {
+  background: #343746;
+  color: #fff;
+}
+
+.fileTree {
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  padding: 4px 0 8px;
+}
+
 .codeEditor {
+  min-width: 0;
   height: 100%;
   min-height: 0;
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.editorMain > .terminalContainer {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.codeEditorSurface {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.editorHistoryToolbar {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-bottom: 1px solid #424242;
+  background: #282a36;
+}
+
+.editorHistoryToolbar button {
+  border: 1px solid #45495a;
+  border-radius: 4px;
+  padding: 4px 8px;
+  background: #3e4153;
+  color: #f8f8f2;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.editorHistoryToolbar button:hover:not(:disabled) {
+  border-color: #4aee88;
+  color: #4aee88;
+}
+
+.editorHistoryToolbar button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.editorHistoryToolbar span {
+  overflow: hidden;
+  margin-left: auto;
+  color: #9da3b6;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .CodeMirror {
   height: 100% !important;
   font-size: 16px;
   line-height: 1.6;
+}
+
+.codeEditorSurface > .CodeMirror {
+  flex: 1;
+  min-height: 0;
+  height: 0 !important;
 }
 
 /* Terminal Styles */
@@ -486,6 +702,158 @@ li.CodeMirror-hint-active {
   background: #50546a;
 }
 
+.fileSearchToggleBtn {
+  padding: 8px 11px;
+  background: #3e4153;
+  color: #fff;
+}
+
+.fileSearchDialog {
+  display: flex;
+  width: min(680px, 94vw);
+  max-height: min(78vh, 760px);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #45495a;
+  border-radius: 10px;
+  background: #22242e;
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.55);
+}
+
+.fileSearchInput {
+  margin: 14px 18px 8px;
+  padding: 11px 12px;
+  border: 1px solid #596078;
+  border-radius: 6px;
+  background: #171922;
+  color: #f8f8f2;
+  font: inherit;
+  outline: none;
+}
+
+.fileSearchInput:focus {
+  border-color: #4aee88;
+  box-shadow: 0 0 0 2px rgba(74, 238, 136, 0.15);
+}
+
+.fileReplaceControls {
+  padding: 0 18px 10px;
+}
+
+.fileReplaceInput {
+  width: 100%;
+  margin: 0 0 8px;
+}
+
+.fileReplaceActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fileReplaceActions button,
+.replaceMatchBtn {
+  border: 1px solid #596078;
+  border-radius: 5px;
+  padding: 7px 9px;
+  background: #303341;
+  color: #e6e8ef;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.fileReplaceActions .replaceProjectBtn {
+  border-color: #4aee88;
+  color: #4aee88;
+}
+
+.fileReplaceActions button:hover:not(:disabled),
+.replaceMatchBtn:hover:not(:disabled) {
+  background: #414557;
+}
+
+.fileReplaceActions button:disabled,
+.replaceMatchBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.fileReplaceHint {
+  margin-top: 7px;
+  color: #e6bd67;
+  font-size: 11px;
+}
+
+.fileSearchResults {
+  min-height: 80px;
+  overflow-y: auto;
+  padding: 4px 18px 12px;
+}
+
+.fileSearchCount {
+  margin: 4px 0 8px;
+  color: #9da3b6;
+  font-size: 11px;
+}
+
+.fileSearchResultRow {
+  display: flex;
+  align-items: center;
+  border-top: 1px solid #383b49;
+}
+
+.fileSearchResult {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 10px;
+  border: 0;
+  border: 0;
+  background: transparent;
+  color: #d6d8e0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.fileSearchResult:hover {
+  background: #303341;
+}
+
+.replaceMatchBtn {
+  flex: none;
+  margin-right: 8px;
+}
+
+.fileSearchResultMeta {
+  overflow: hidden;
+  color: #8be9fd;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileSearchResult code {
+  overflow: hidden;
+  color: #f8f8f2;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+.fileSearchFooter {
+  padding: 9px 18px;
+  border-top: 1px solid #383b49;
+  color: #9da3b6;
+  font-size: 10px;
+}
+
+.fileSearchMatch {
+  background: rgba(241, 250, 140, 0.45);
+  outline: 1px solid #f1fa8c;
+}
+
 .snapshotPopover {
   position: absolute;
   z-index: 20;
@@ -499,6 +867,59 @@ li.CodeMirror-hint-active {
   border-radius: 8px;
   background: #282a36;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+}
+
+.snapshotBackdrop {
+  z-index: 45;
+}
+
+.snapshotDialog {
+  display: flex;
+  width: min(650px, 94vw);
+  max-height: min(78vh, 760px);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #45495a;
+  border-radius: 10px;
+  background: #22242e;
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.55);
+}
+
+.snapshotDialogHeader,
+.snapshotDialogActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+}
+
+.snapshotDialogHeader {
+  border-bottom: 1px solid #45495a;
+}
+
+.snapshotDialogHeader h2 {
+  color: #f8f8f2;
+  font-size: 17px;
+}
+
+.snapshotDialogHeader p,
+.snapshotDialogActions > span {
+  margin-top: 4px;
+  color: #9da3b6;
+  font-size: 12px;
+}
+
+.snapshotDialogActions {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.snapshotList {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 18px 12px;
 }
 
 .snapshotPopoverHeader,
@@ -527,7 +948,36 @@ li.CodeMirror-hint-active {
   white-space: nowrap;
 }
 
+.snapshotCompareBtn {
+  border: 1px solid #596078;
+  border-radius: 4px;
+  padding: 5px 7px;
+  background: transparent;
+  color: #d6d8e0;
+  cursor: pointer;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.snapshotCompareBtn:hover {
+  border-color: #8be9fd;
+  color: #8be9fd;
+}
+
+.exportZipBtn {
+  padding: 9px 12px;
+  background: #3e4153;
+  color: #fff;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.exportZipBtn:hover:not(:disabled) {
+  background: #50546a;
+}
+
 .snapshotItem {
+  min-width: 0;
   padding: 8px 0;
   border-top: 1px solid #424242;
 }
@@ -583,6 +1033,32 @@ li.CodeMirror-hint-active {
   font-size: 12px;
 }
 
+@media (max-width: 600px) {
+  .snapshotDialog {
+    width: 96vw;
+    max-height: 82vh;
+  }
+
+  .snapshotDialogHeader,
+  .snapshotDialogActions {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .snapshotList {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .snapshotItem {
+    flex-wrap: wrap;
+  }
+
+  .snapshotInfo {
+    flex-basis: 100%;
+  }
+}
+
 .languageControl > span {
   color: #aaa;
   font-size: 12px;
@@ -624,6 +1100,13 @@ li.CodeMirror-hint-active {
   padding: 0 15px;
   cursor: pointer;
   font: inherit;
+}
+
+.fileTabButton {
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .fileTab.active {
@@ -734,6 +1217,236 @@ li.CodeMirror-hint-active {
   font-size: 11px;
 }
 
+.clientManagementActions {
+  display: flex;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+.clientManagementActions button {
+  border: 1px solid #45495a;
+  border-radius: 4px;
+  padding: 3px 5px;
+  background: #282a36;
+  color: #d6d8e0;
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.clientManagementActions button:hover {
+  border-color: #4aee88;
+  color: #4aee88;
+}
+
+.comparisonBackdrop {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(9, 10, 15, 0.78);
+}
+
+.comparisonDialog {
+  display: flex;
+  width: min(1100px, 96vw);
+  max-height: min(85vh, 900px);
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #45495a;
+  border-radius: 10px;
+  background: #22242e;
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.55);
+}
+
+.snapshotNameDialog {
+  width: min(420px, 92vw);
+  padding: 20px;
+  border: 1px solid #45495a;
+  border-radius: 9px;
+  background: #282a36;
+  box-shadow: 0 18px 55px rgba(0, 0, 0, 0.55);
+}
+
+.snapshotNameDialog h2 {
+  margin-bottom: 14px;
+  color: #f8f8f2;
+  font-size: 17px;
+}
+
+.snapshotNameDialog label {
+  display: block;
+  margin-bottom: 6px;
+  color: #c6cad5;
+  font-size: 12px;
+}
+
+.snapshotNameDialog input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #596078;
+  border-radius: 5px;
+  background: #1e2029;
+  color: #fff;
+  font: inherit;
+}
+
+.snapshotNameActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.snapshotNameActions button {
+  border: 0;
+  border-radius: 5px;
+  padding: 8px 11px;
+  background: #3e4153;
+  color: #fff;
+  cursor: pointer;
+}
+
+.snapshotNameActions button[type='submit'] {
+  background: #4aee88;
+  color: #111;
+  font-weight: 700;
+}
+
+.comparisonHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid #45495a;
+}
+
+.comparisonHeader h2 {
+  color: #f8f8f2;
+  font-size: 17px;
+}
+
+.comparisonHeader p,
+.comparisonHint {
+  margin-top: 5px;
+  color: #9da3b6;
+  font-size: 12px;
+}
+
+.comparisonClose {
+  border: 0;
+  background: transparent;
+  color: #d6d8e0;
+  cursor: pointer;
+  font-size: 28px;
+}
+
+.comparisonContent {
+  overflow: auto;
+  padding: 12px 18px 18px;
+}
+
+.comparisonFile {
+  margin-bottom: 12px;
+  border: 1px solid #45495a;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.comparisonFile > summary {
+  padding: 10px 12px;
+  background: #2b2e3a;
+  color: #f8f8f2;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.comparisonFile > summary span {
+  margin: 0 8px;
+  color: #8be9fd;
+}
+
+.comparisonFile > summary em {
+  float: right;
+  color: #9da3b6;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 400;
+}
+
+.comparisonHint {
+  padding: 0 12px 8px;
+}
+
+.diffColumnHeadings,
+.diffRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.diffColumnHeadings {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #343746;
+  color: #c6cad5;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.diffColumnHeadings span {
+  padding: 7px 10px;
+}
+
+.diffColumnHeadings span + span,
+.diffCell + .diffCell {
+  border-left: 1px solid #45495a;
+}
+
+.diffRow {
+  min-height: 24px;
+  color: #e6e8ee;
+  font: 12px/1.6 Consolas, 'Courier New', monospace;
+}
+
+.diffCell {
+  display: flex;
+  min-width: 0;
+  white-space: pre;
+}
+
+.diffCell code {
+  overflow-x: auto;
+  padding-right: 8px;
+  font: inherit;
+}
+
+.diffLineNumber {
+  width: 42px;
+  flex: 0 0 42px;
+  margin-right: 8px;
+  padding-right: 7px;
+  color: #7f869a;
+  text-align: right;
+  user-select: none;
+}
+
+.diff-removed .diffCell:first-child {
+  background: rgba(255, 85, 85, 0.18);
+}
+
+.diff-added .diffCell:last-child {
+  background: rgba(80, 250, 123, 0.16);
+}
+
+.diff-changed .diffCell {
+  background: rgba(241, 250, 140, 0.13);
+}
+
 .visuallyHidden {
   position: absolute;
   width: 1px;
@@ -802,6 +1515,24 @@ li.CodeMirror-hint-active {
   }
 
   .editorMain {
-    grid-template-rows: minmax(180px, 1fr) 180px;
+    position: relative;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(220px, 1fr) 180px;
+  }
+
+  .fileExplorer {
+    top: 0;
+    bottom: 180px;
+    left: 0;
+  }
+
+  .codeEditor {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .editorMain > .terminalContainer {
+    grid-column: 1;
+    grid-row: 2;
   }
 }
