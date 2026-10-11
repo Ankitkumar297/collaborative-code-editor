@@ -195,7 +195,7 @@ body {
 
 .clientsList {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   flex-wrap: wrap;
   gap: 20px;
 }
@@ -1494,7 +1494,7 @@ li.CodeMirror-hint-active {
 @media (max-width: 768px) {
   .editorPageWrap {
     grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(420px, 1fr) auto;
+    grid-template-rows: auto minmax(620px, auto) auto;
     align-content: start;
     overflow-y: auto;
   }
@@ -1511,18 +1511,19 @@ li.CodeMirror-hint-active {
   }
 
   .editorContainer {
-    min-height: 420px;
+    min-height: 620px;
   }
 
   .editorMain {
     position: relative;
+    min-height: 0;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(220px, 1fr) 180px;
+    grid-template-rows: minmax(320px, 1fr) 220px;
   }
 
   .fileExplorer {
     top: 0;
-    bottom: 180px;
+    bottom: 220px;
     left: 0;
   }
 

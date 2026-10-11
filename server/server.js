@@ -376,6 +376,7 @@ io.on('connection', (socket) => {
       if (runId === activeRunId) {
         isCompiling = false;
         pendingTerminalInput = '';
+        console.error('Code execution failed:', err);
         socket.emit(ACTIONS.CODE_OUTPUT, `\r\nExecution Error: ${err.message}\r\n`);
       }
     }

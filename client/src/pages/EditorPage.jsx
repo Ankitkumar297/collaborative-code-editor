@@ -262,7 +262,7 @@ const EditorPage = () => {
       term.dispose();
       if (xtermRef.current === term) xtermRef.current = null;
     };
-  }, []);
+  }, [username]);
 
   useEffect(() => {
     const joiningUsername = username.trim();
