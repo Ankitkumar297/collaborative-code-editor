@@ -51,7 +51,9 @@ export const spawnCode = async (code, language, onData) => {
   if (language === 'javascript' || language === 'js') {
     filepath = path.join(tempDir, `${jobId}.js`);
     fs.writeFileSync(filepath, code);
-    executeCommand = 'node';
+    // Use the exact Node binary running this service. Render and other hosts
+    // may not expose the same executable name through the child-process PATH.
+    executeCommand = process.execPath;
     args = [filepath];
   } else if (language === 'python' || language === 'py') {
     filepath = path.join(tempDir, `${jobId}.py`);
@@ -86,14 +88,14 @@ export const spawnCode = async (code, language, onData) => {
   } else if (language === 'typescript') {
     filepath = path.join(tempDir, `${jobId}.ts`);
     fs.writeFileSync(filepath, code);
-    executeCommand = 'node';
+    executeCommand = process.execPath;
     args = ['--experimental-transform-types', filepath];
   } else if (language === 'node') {
     // Node.js examples commonly use require(); .cjs keeps them working even
     // though the application itself is configured as ESM.
     filepath = path.join(tempDir, `${jobId}.cjs`);
     fs.writeFileSync(filepath, code);
-    executeCommand = 'node';
+    executeCommand = process.execPath;
     args = [filepath];
   } else if (language === 'csharp') {
     throw new Error('C# execution requires the .NET SDK (dotnet) installed on the server.');
@@ -173,7 +175,7 @@ export const executeCode = async (code, language) => {
   if (language === 'javascript' || language === 'js') {
     filepath = path.join(tempDir, `${jobId}.js`);
     fs.writeFileSync(filepath, code);
-    executeCommand = 'node';
+    executeCommand = process.execPath;
     executeArgs = [filepath];
   } else if (language === 'python' || language === 'py') {
     filepath = path.join(tempDir, `${jobId}.py`);
@@ -205,12 +207,12 @@ export const executeCode = async (code, language) => {
   } else if (language === 'typescript') {
     filepath = path.join(tempDir, `${jobId}.ts`);
     fs.writeFileSync(filepath, code);
-    executeCommand = 'node';
+    executeCommand = process.execPath;
     executeArgs = ['--experimental-transform-types', filepath];
   } else if (language === 'node') {
     filepath = path.join(tempDir, `${jobId}.cjs`);
     fs.writeFileSync(filepath, code);
-    executeCommand = 'node';
+    executeCommand = process.execPath;
     executeArgs = [filepath];
   } else if (language === 'csharp') {
     throw new Error('C# execution requires the .NET SDK (dotnet) installed on the server.');

@@ -308,10 +308,19 @@ io.on('connection', (socket) => {
   let isCompiling = false;
   let pendingTerminalInput = '';
 
-  socket.on(ACTIONS.CODE_RUN, async ({ code, language }) => {
+  socket.on(ACTIONS.CODE_RUN, async ({ code, language } = {}, acknowledge) => {
     const roomId = socket.data.roomId;
-    if (!roomId || !canEditRoom(socket, roomId)) return sendPermissionDenied(socket);
-    if (typeof code !== 'string' || typeof language !== 'string') return;
+    if (!roomId || !canEditRoom(socket, roomId)) {
+      sendPermissionDenied(socket);
+      acknowledge?.({ ok: false, error: 'You do not have permission to run code in this room.' });
+      return;
+    }
+    if (typeof code !== 'string' || typeof language !== 'string') {
+      acknowledge?.({ ok: false, error: 'The run request is missing code or a language.' });
+      return;
+    }
+    acknowledge?.({ ok: true });
+    socket.emit(ACTIONS.CODE_OUTPUT, `Starting ${language}...\r\n`);
     const runId = ++activeRunId;
     isCompiling = true;
     pendingTerminalInput = '';

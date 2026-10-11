@@ -99,6 +99,7 @@ const EditorPage = () => {
   const [inviteUsername, setInviteUsername] = useState('');
   const terminalRef = useRef(null);
   const xtermRef = useRef(null);
+  const runAckTimerRef = useRef(null);
   const terminalInputActiveRef = useRef(false);
   const terminalInputBufferRef = useRef('');
   const activeFile = useMemo(
@@ -395,6 +396,10 @@ const EditorPage = () => {
       );
     };
     const handleCodeOutput = (data) => {
+      if (runAckTimerRef.current) {
+        window.clearTimeout(runAckTimerRef.current);
+        runAckTimerRef.current = null;
+      }
       xtermRef.current?.write(data);
       if (/\b(?:Process exited|Process stopped|Execution timed out|Output exceeded|Execution Error|Process error):?/i.test(data)) {
         terminalInputActiveRef.current = false;
@@ -415,6 +420,10 @@ const EditorPage = () => {
       currentSocket.emit(ACTIONS.JOIN, { roomId, username: joiningUsername });
     };
     const handleDisconnect = () => {
+      if (runAckTimerRef.current) {
+        window.clearTimeout(runAckTimerRef.current);
+        runAckTimerRef.current = null;
+      }
       setIsConnected(false);
       setHasJoinedRoom(false);
       setIsReconnecting(hasConnectedRef.current);
@@ -438,6 +447,10 @@ const EditorPage = () => {
     currentSocket.connect();
 
     return () => {
+      if (runAckTimerRef.current) {
+        window.clearTimeout(runAckTimerRef.current);
+        runAckTimerRef.current = null;
+      }
       currentSocket.removeAllListeners();
       currentSocket.disconnect();
       if (socketRef.current === currentSocket) socketRef.current = null;
@@ -699,9 +712,26 @@ const EditorPage = () => {
     xtermRef.current?.write('\x1b[32mRunning code...\x1b[0m\r\n');
     terminalInputBufferRef.current = '';
     terminalInputActiveRef.current = true;
+    if (runAckTimerRef.current) window.clearTimeout(runAckTimerRef.current);
+    runAckTimerRef.current = window.setTimeout(() => {
+      runAckTimerRef.current = null;
+      terminalInputActiveRef.current = false;
+      xtermRef.current?.write(
+        '\r\nRun request was not acknowledged by the execution server. Check the backend connection and deployment, then try again.\r\n',
+      );
+    }, 8000);
     socketRef.current?.emit(ACTIONS.CODE_RUN, {
       code: activeFile.code,
       language: activeFile.language,
+    }, (response) => {
+      if (runAckTimerRef.current) {
+        window.clearTimeout(runAckTimerRef.current);
+        runAckTimerRef.current = null;
+      }
+      if (!response?.ok) {
+        terminalInputActiveRef.current = false;
+        xtermRef.current?.write(`\r\nRun request failed: ${response?.error || 'Unknown server error'}\r\n`);
+      }
     });
   };
 
